@@ -1,3 +1,5 @@
+export type PcolibResponse = {headers: any, body: any, status: number, statusText: string}
+
 export type ChainedExample = {
 	readonly data: NormData;
 	query(value: Record<string, any>):ChainedExample;
@@ -5,6 +7,7 @@ export type ChainedExample = {
 	params(value: Record<string, any>):ChainedExample;
 	headers(value: Record<string,any>):ChainedExample;
 	example(exmp: Example):ChainedExample;
+	run():Promise<PcolibResponse>
 }
 
 export type ChainedRequest = {
@@ -13,7 +16,7 @@ export type ChainedRequest = {
 
 export interface Options {
 	/** Collection object, or the URL. */
-	collection: Record< string, any >
+	collection?: Record< string, any >
 
 	/** Variables, with values. */
 	variables?: Record<string, any>
