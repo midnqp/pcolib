@@ -10,8 +10,8 @@
   "types": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "dev": "tsc-watch --compiler ./node_modules/.bin/ttsc --noClear --onSuccess 'mpv sound-ok.wav --no-terminal' --onFailure 'mpv sound-err.wav --no-terminal'",
-    "postinstall": "npm build",
+    "dev": "tsc-watch --compiler ./node_modules/.bin/ttsc --noClear --onSuccess 'mpv bin/ok.wav --no-terminal' --onFailure 'mpv bin/err.wav --no-terminal'",
+    "postinstall": "npm run build",
     "test": "export $(cat .env | xargs) && mocha 'dist/examples/**/*.example.js'"
   },
   "keywords": [
