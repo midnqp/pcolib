@@ -22,7 +22,7 @@ for (const file of staged) {
 	if (! await access('./'+file)) {log(`:: file not found: ${file}`); continue}
 	if (!conf){ log(`:: config not found for: ${file}`); continue}
 	const stop = startSpinner()
-	console.log((await $`npx prettierx ${conf} ${file}`).stdout.slice(0, -2))
+	console.log((await $`npx prettierx ${conf} ${file}`).stdout.slice(0, -1))
 	await $`git add ${file}` // prettierx writes files, so adding them back.
 	stop()
 }
