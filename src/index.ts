@@ -1,21 +1,44 @@
 import * as util from './util.js'
-import {chainRequest, chainExample} from './util-pcolib.js'
+import {chainRequest, chainExample, fireRequest} from './util-pcolib.js'
 import * as T from './typings/index.js'
-import { URL } from 'url'
 import axios from 'axios'
+import psdk from 'postman-collection'
 
 class Pcolib {
-	private collection: Record< string, any > = {}
-	private variables: Record< string, any > = {}
+	private collection: Record<string, any> = {}
+	private variables: Record<string, any> = {}
 	private global: T.InputNormData = {}
 
 	constructor (options: T.Options) {
-		const { collection, variables, global } = options
-		this.collection = collection
+		const {collection, variables, global} = options
 		if (variables) this.variables = variables
 		if (global) this.global = global
+
+		if (collection && !psdk.Collection.isCollection(collection))
+			throw Error('Pcolib Error: Expected Postman collection schema.')
 	}
-	
+
+	/**
+	 * @param info postman collection info
+	 * @param {string} info.id - postman collection id
+	 * @param {string} info.apikey - postman api key
+	 */
+	async fetchCollection (info: {id: string; apikey: string}) {
+		const {id, apikey} = info
+		try {
+			const url = 'https://api.getpostman.com/collections/' + id
+			const opts = {headers: {'x-api-key': apikey}}
+			const res = await axios.get(url, opts)
+			this.collection = res.data.collection
+		} catch (err: any) {
+			let msg = 'Pcolib Error: Collection could not be downloaded.'
+			if (err?.response?.data) {
+				msg += '\nResponse: ' + util.expand(err.response.data)
+			}
+			throw Error(msg)
+		}
+	}
+
 	/**
 	 * Gets usable, normalized data to make
 	 * request.
@@ -24,9 +47,13 @@ class Pcolib {
 	 * `example` are omitted, then takes data by
 	 * method-chaining.
 	 */
-	get (folder:T.FolderOrReq):ReturnType<typeof chainRequest>
-	get (folder: T.FolderOrReq, request: T.FolderOrReq): ReturnType<typeof chainExample>
-	get (folder: T.FolderOrReq, request:T.FolderOrReq, example:T.Example|T.ExampleArray):T.NormData
+	get (folder: T.FolderOrReq): T.ChainedRequest
+	get (folder: T.FolderOrReq, request: T.FolderOrReq): T.ChainedExample
+	get (
+		folder: T.FolderOrReq,
+		request: T.FolderOrReq,
+		example: T.Example | T.ExampleArray
+	): T.NormData
 
 	get (folder: T.FolderOrReq, request?: T.FolderOrReq, example?: T.Example) {
 		// TODO chain folder??
@@ -39,19 +66,16 @@ class Pcolib {
 
 		// If example not mentioned,
 		// have a chain to take example, or custom data.
-		if (!example) return chainExample(parentRequest)
+		if (!example) return chainExample.call(this, parentRequest)
 		const data = Pcolib.pinpointExample(parentRequest, example)
 
 		// If all mentioned, then it's good for us.
 		return data
 	}
 
-	public static pinpointFolder (
-		collection: Record< string, any >,
-		folder: T.FolderOrReq
-	) {
+	public static pinpointFolder (collection: Record<string, any>, folder: T.FolderOrReq) {
 		let item
-		util.log.debug('folder: '+folder)
+		util.log.debug('folder: ' + folder)
 		switch (typeof folder) {
 			case 'string':
 				item = util.next_where(collection.item, folder)
@@ -67,7 +91,7 @@ class Pcolib {
 
 	public static pinpointRequest (parentFolder, request: T.FolderOrReq) {
 		let ret
-		util.log.debug('request: '+request)
+		util.log.debug('request: ' + request)
 		switch (typeof request) {
 			case 'string':
 				ret = util.next_where(parentFolder.item, request)
@@ -83,14 +107,13 @@ class Pcolib {
 
 	public static pinpointExample (parentRequest, example: T.Example) {
 		let data
-		util.log.debug('example: '+example)
+		util.log.debug('example: ' + example)
 		switch (typeof example) {
 			case 'string': {
-				if (!example.includes('dev: '))
-					throw Error(`Example name must begin with "dev: "`)
+				if (!example.includes('dev: ')) throw Error(`Example name must begin with "dev: "`)
 				const _item = util.next_where(parentRequest.response, example)
 				util.check(_item, 'Example')
-				data = (_item as Record< string, any >).originalRequest
+				data = (_item as Record<string, any>).originalRequest
 				break
 			}
 			case 'number': {
@@ -118,20 +141,22 @@ class Pcolib {
 
 		const parentRequest = Pcolib.pinpointRequest(parentFolder, request)
 
-		// Custom easily-normizable data.
-		if (Array.isArray(data)) {
+		if (!Array.isArray(data)) normalizedData = Pcolib.pinpointExample(parentRequest, data)
+		else {
+			// Custom easily-normizable data.
 			const query = data[0] || {}
 			const params = data[1] || {}
 			const body = data[2] || {}
 			const headers = data[3] || {}
-			normalizedData = { query, params, body, headers }
+			normalizedData = {query, params, body, headers}
 		}
-		else normalizedData = Pcolib.pinpointExample(parentRequest, data)
 
-		const ret = await this.fireRequest(
-			parentRequest.request,
-			normalizedData
-		)
+		const ret = await fireRequest({
+			requestData: parentRequest.request,
+			normalizedData,
+			variables: this.variables,
+			globals: this.global,
+		})
 		return ret
 	}
 
@@ -141,37 +166,13 @@ class Pcolib {
 	 *
 	 * @returns - HTTP response body.
 	 */
-	private async fireRequest (obj, data: T.NormData) {
-		let out: any
-
-		const method: 'get' | 'body' | 'delete' | 'put' | 'post' =
-			obj.method.toLowerCase()
-		const { query, params, body } = data
-		// for headers, local being
-		// over-ridden by global.
-		const headers = { ...data.headers, ...this.global.headers }
-
-		let url = obj.url.raw
-		url = util.replace_path_var(url, params)
-		url = util.replace_postman_var(url, this.collection.variable)
-		url = new URL(url)
-		const { pathname } = url
-		url = url.origin + pathname
-
-		const interf = axios[method]
-		switch (method) {
-			case 'delete':
-			case 'get':
-				out = await interf(url, { params: query, headers })
-				break
-			case 'put':
-			case 'post':
-				out = await interf(url, body, { params: query, headers })
-				break
-			default:
-				throw Error(`Found an unhandled "${method}" request!`)
-		}
-		return out?.data
+	private async fireRequest (requestData, data: T.NormData) {
+		return fireRequest({
+			requestData,
+			normalizedData: data,
+			variables: this.variables,
+			globals: this.global,
+		})
 	}
 }
 
