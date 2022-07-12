@@ -14,8 +14,10 @@ class Pcolib {
 		if (variables) this.variables = variables
 		if (global) this.global = global
 
-		if (collection && !psdk.Collection.isCollection(collection))
+		if (!collection || !Object.keys(collection).length) {
 			throw Error('Pcolib Error: Expected Postman collection schema.')
+		}
+		this.collection = collection
 	}
 
 	/**
@@ -133,7 +135,7 @@ class Pcolib {
 	async run (
 		folder: T.FolderOrReq,
 		request: T.FolderOrReq,
-		data: T.Example | T.ExampleArray = undefined
+		dataOrExample: T.NormData | T.Example | T.ExampleArray = undefined
 	) {
 		let normalizedData
 
@@ -141,16 +143,43 @@ class Pcolib {
 
 		const parentRequest = Pcolib.pinpointRequest(parentFolder, request)
 
-		if (!Array.isArray(data)) normalizedData = Pcolib.pinpointExample(parentRequest, data)
-		else {
+		util.log.debug('Pcolib run dataOrExample: ' + util.expand(<any>dataOrExample))
+		const isExample =
+			typeof dataOrExample == 'string' ||
+			typeof dataOrExample == 'number' ||
+			typeof dataOrExample == 'undefined'
+		const isExampleArray = Array.isArray(dataOrExample)
+		let isNormData: boolean | undefined
+
+		// example name/number/undefined, or NormData.
+		if (isExample && !isExampleArray) {
+			util.log.debug('Pcolib run: example')
+			// object, possibly T.NormData
+			if (dataOrExample !== undefined && util.lodash.isObject(dataOrExample)) {
+				util.log.debug('Pcolib run example: object')
+				const keys = Object.keys(dataOrExample)
+				isNormData = ['query', 'headers', 'body', 'params'].every(e => keys.includes(e))
+			}
+			// string/number/undefined; possibly example number/name
+			else normalizedData = Pcolib.pinpointExample(parentRequest, dataOrExample)
+		}
+		// example array
+		else if (isExampleArray) {
+			util.log.debug('Pcolib run: example array')
 			// Custom easily-normizable data.
-			const query = data[0] || {}
-			const params = data[1] || {}
-			const body = data[2] || {}
-			const headers = data[3] || {}
+			const query = dataOrExample[0] || {}
+			const params = dataOrExample[1] || {}
+			const body = dataOrExample[2] || {}
+			const headers = dataOrExample[3] || {}
 			normalizedData = {query, params, body, headers}
 		}
+		// normalized data
+		else if (isNormData === true && !isExample) {
+			util.log.debug('Pcolib run: normalized data')
+			normalizedData = dataOrExample
+		}
 
+		util.log.debug('Pcolib run: ' + util.expand({isExample, isExampleArray, isNormData}))
 		const ret = await fireRequest({
 			requestData: parentRequest.request,
 			normalizedData,

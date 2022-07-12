@@ -3,11 +3,23 @@ import Pcolib from './index.js'
 import axios, {AxiosError, AxiosResponse} from 'axios'
 import * as util from './util.js'
 
-export async function fireRequest ({requestData, normalizedData, variables, globals}) {
+export async function fireRequest ({
+	requestData,
+	normalizedData,
+	variables,
+	globals,
+}: {
+	requestData: any
+	normalizedData: T.NormData
+	variables: any
+	globals: any
+}) {
 	const obj = requestData
 	const data = normalizedData
+	if (data === undefined) throw Error('Normalized data cannot be empty.')
 
 	const method: 'get' | 'body' | 'delete' | 'put' | 'post' = obj.method.toLowerCase()
+	util.log.debug('request normalizedData: ' + util.expand(data))
 	const {query, params, body} = data
 	// for headers, local being
 	// over-ridden by global.
@@ -21,7 +33,6 @@ export async function fireRequest ({requestData, normalizedData, variables, glob
 	url = url.origin + pathname
 	util.log.debug('request method:' + method)
 	util.log.debug('request url: ' + url)
-	util.log.debug('request payload: ' + util.expand({headers, query, params, body}))
 
 	let _response: Promise<AxiosResponse>
 	const interf = axios[method]

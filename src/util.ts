@@ -18,11 +18,6 @@ export function check (item: any, entity): item is Record<string, any> {
 	return true
 }
 
-/** Mostly used to traverse to child folders/requests/examples. */
-export function next_where (array: Record<string, string>[], value, prop = 'name') {
-	return array.find(each => each[prop].toLowerCase() === value.toLowerCase())
-}
-
 export const log = {
 	/** plain debug info */
 	debug: function (msg: string | object | number, indent = 0) {
@@ -40,6 +35,16 @@ export const log = {
 			process.stdout.write(tbsp + marker + chalk.white(msg) + '\n')
 		}
 	},
+}
+
+/** Mostly used to traverse to child folders/requests/examples. */
+export function next_where (array: Record<string, string>[], value, prop = 'name') {
+	const arrayString = JSON.stringify(array)
+	log.debug('next-where prop: ' + prop)
+	log.debug('next-where value: ' + value)
+	log.debug('next-where array length: ' + array?.length)
+	if (!Array.isArray(array)) throw Error('Not a collection of items:\n' + arrayString)
+	return array.find(each => each[prop].toLowerCase() === value.toLowerCase())
 }
 
 /**
