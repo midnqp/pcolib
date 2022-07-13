@@ -1,4 +1,16 @@
 ![pcolib-logo](https://user-images.githubusercontent.com/50658760/178645554-c5cecc80-fa33-49bd-b975-10445d8a2648.png)
+<p align="center">
+<a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge">
+</a>
+    &emsp;
+    <img src="https://img.shields.io/github/languages/code-size/midnqp/postman-collection-interface-library?style=for-the-badge">
+    &emsp;
+    <img src="https://img.shields.io/tokei/lines/github.com/midnqp/postman-collection-interface-library?style=for-the-badge">
+	&emps;
+	<img src="https://img.shields.io/npm/v/postman-collection-interface?style=for-the-badge&logo=npm">
+</p>
+
 
 ## API
 
