@@ -7,8 +7,8 @@
     <img src="https://img.shields.io/github/languages/code-size/midnqp/postman-collection-interface-library?style=for-the-badge">
     &emsp;
     <img src="https://img.shields.io/tokei/lines/github.com/midnqp/postman-collection-interface-library?style=for-the-badge">
-	&emps;
-	<img src="https://img.shields.io/npm/v/postman-collection-interface?style=for-the-badge&logo=npm">
+    &emsp;
+    <img src="https://img.shields.io/npm/v/postman-collection-interface?style=for-the-badge&logo=npm">
 </p>
 
 
